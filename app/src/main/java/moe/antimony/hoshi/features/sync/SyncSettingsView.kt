@@ -328,9 +328,15 @@ fun SyncSettingsView(
         devicePrompt = null
         scope.launch {
             if (DriveEndpoints.normalize(serverUrl) != DriveEndpoints.normalize(authorizer.configuredServerUrl())) {
-                // State synced with the previous server does not exist on the new one.
-                runDriveAuthorization({ operationError = it }) { hoshiSync.signOut() }
-                authorizer.saveServerUrl(serverUrl)
+                var changed = false
+                runDriveAuthorization({ operationError = it }) {
+                    hoshiSync.changeServer(serverUrl)
+                    changed = true
+                }
+                if (!changed) {
+                    isAuthorizing = false
+                    return@launch
+                }
             }
             if (currentSettings?.provider == SyncProvider.Gdrive && !authorizer.usesCustomServer()) {
                 var awaitingResult = false

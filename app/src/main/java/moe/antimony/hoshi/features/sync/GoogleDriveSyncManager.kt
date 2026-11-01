@@ -124,6 +124,7 @@ class GoogleDriveSyncManager internal constructor(
     private val revokeAccess: suspend () -> Unit,
     private val clearTtuCache: () -> Unit,
     private val fileTransfer: DriveFileTransfer,
+    private val saveServerUrl: (String) -> Unit = {},
 ) {
     @Inject constructor(
         store: SyncStorage,
@@ -133,6 +134,7 @@ class GoogleDriveSyncManager internal constructor(
         fileTransfer: GoogleDriveFileTransfer,
         settings: SyncSettingsRepository,
         ttu: TtuDriveHandler,
+        deviceCode: DeviceCodeDriveAuthorizer,
         books: BookRepository,
         @FilesDir filesDir: File,
         @CacheDir cacheDir: File,
@@ -140,7 +142,8 @@ class GoogleDriveSyncManager internal constructor(
         @MainDispatcher mainDispatcher: CoroutineDispatcher,
         @IoDispatcher ioDispatcher: CoroutineDispatcher,
     ) : this(store, drive, client, settings, books, filesDir, cacheDir, scope, mainDispatcher, ioDispatcher,
-        { auth.status(SyncProvider.Gdrive) == DriveAuthStatus.Connected }, auth::revokeAccess, ttu::clearCache, fileTransfer)
+        { auth.status(SyncProvider.Gdrive) == DriveAuthStatus.Connected }, auth::revokeAccess, ttu::clearCache, fileTransfer,
+        deviceCode::saveServerUrl)
 
     private val mutableState = MutableStateFlow(GoogleDriveSyncState())
     val state = mutableState.asStateFlow()
@@ -261,6 +264,17 @@ class GoogleDriveSyncManager internal constructor(
         if (settings.settings.first().provider == SyncProvider.Gdrive) resetConnection()
         revokeAccess()
         withContext(ioDispatcher) { clearTtuCache() }
+    }
+
+    /**
+     * Points both providers at another Drive server. What was synced belongs to the old server,
+     * so this signs out and forgets Hoshi sync state even while ッツ is selected. The new server
+     * is saved last, so a failure keeps the old one.
+     */
+    suspend fun changeServer(serverUrl: String): Unit = withContext(mainDispatcher) {
+        signOut()
+        resetConnection()
+        saveServerUrl(serverUrl)
     }
 
     suspend fun changeProvider(provider: SyncProvider): Unit = withContext(mainDispatcher) {

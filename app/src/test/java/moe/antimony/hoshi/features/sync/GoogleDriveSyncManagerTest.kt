@@ -179,6 +179,8 @@ class GoogleDriveSyncManagerTest {
         dispatcher: TestDispatcher = UnconfinedTestDispatcher(testScheduler),
         transferFactory: (GoogleDriveClient) -> DriveFileTransfer = { TestDriveFileTransfer(it) },
         booksDispatcher: CoroutineDispatcher = dispatcher,
+        revokeAccess: suspend () -> Unit = {},
+        saveServerUrl: (String) -> Unit = {},
         beforeRequest: suspend () -> Unit = {},
     ): Fixture {
         val remote = DriveService()
@@ -195,7 +197,7 @@ class GoogleDriveSyncManagerTest {
         val client = GoogleDriveClient(token, { settings.settings.first().provider }, {}, dispatcher, remote::connection)
         val handler = GoogleDriveSyncHandler(client)
         val manager = GoogleDriveSyncManager(store, handler, client, settings, books, temporary.root,
-            temporary.root.resolve("cache").apply { mkdirs() }, CoroutineScope(backgroundScope.coroutineContext + SupervisorJob(backgroundScope.coroutineContext[Job])), dispatcher, dispatcher, { true }, {}, {}, transferFactory(client))
+            temporary.root.resolve("cache").apply { mkdirs() }, CoroutineScope(backgroundScope.coroutineContext + SupervisorJob(backgroundScope.coroutineContext[Job])), dispatcher, dispatcher, { true }, revokeAccess, {}, transferFactory(client), saveServerUrl)
         return Fixture(remote, books, store, manager, settings, client)
     }
 
@@ -337,6 +339,29 @@ class GoogleDriveSyncManagerTest {
         assertEquals(3, f.remote.reads["a"])
         assertEquals(1, f.remote.queries.count { "book-a.json" in it })
         assertEquals(mapOf("a" to "1"), restarted.cache.bookVersions["book-a"])
+    }
+
+    @Test fun changingServerWhileTtuIsSelectedForgetsTheOldServersHoshiState() = runTest {
+        val saved = mutableListOf<String>()
+        val f = fixture(saveServerUrl = { saved += it })
+        f.remote.addState("a", "book-a.json", SyncFormat.encode(remoteBook))
+        f.manager.sync()
+        runCurrent()
+        assertEquals("next", f.manager.cache.cursor)
+        f.settings.update { it.copy(provider = SyncProvider.Ttu) }
+        f.manager.changeServer("http://192.168.1.10:8737")
+        assertNull(f.manager.cache.cursor)
+        assertEquals("", f.manager.cache.root)
+        assertTrue(f.store.state.books.values.none { it.attached })
+        assertEquals(listOf("http://192.168.1.10:8737"), saved)
+    }
+
+    @Test fun failedServerChangeKeepsTheOldServer() = runTest {
+        val saved = mutableListOf<String>()
+        val f = fixture(revokeAccess = { throw IOException("sign out failed") }, saveServerUrl = { saved += it })
+        val error = runCatching { f.manager.changeServer("http://192.168.1.10:8737") }.exceptionOrNull()
+        assertEquals("sign out failed", error?.message)
+        assertTrue(saved.isEmpty())
     }
 
     @Test fun mergesDuplicateDocumentsInIdOrderBeforeTrashingDuplicates() = runTest {
