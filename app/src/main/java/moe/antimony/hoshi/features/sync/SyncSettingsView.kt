@@ -37,6 +37,8 @@ import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.SwapVert
 import moe.antimony.hoshi.ui.HoshiAlertDialog as AlertDialog
 import moe.antimony.hoshi.ui.HoshiButton as Button
@@ -146,6 +148,7 @@ fun SyncSettingsView(
     var clientId by remember { mutableStateOf("") }
     var clientSecret by remember { mutableStateOf("") }
     var serverUrl by remember { mutableStateOf("") }
+    var advancedExpanded by remember { mutableStateOf(false) }
     var devicePrompt by remember { mutableStateOf<DeviceCodePrompt?>(null) }
     var pollIntervalSeconds by remember { mutableStateOf(5L) }
     var operationError by remember { mutableStateOf<UiText?>(null) }
@@ -678,28 +681,13 @@ fun SyncSettingsView(
                             )
                         },
                     )
-                    SettingsDivider()
-                    Column(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        val serverUrlScrollState = rememberScrollState()
-                        val serverUrlState = rememberSyncedTextFieldState(
-                            value = serverUrl,
-                            onValueChange = { serverUrl = it },
-                            scrollState = serverUrlScrollState,
-                        )
-                        OutlinedTextField(
-                            state = serverUrlState,
-                            label = { Text(stringResource(R.string.sync_server_url)) },
-                            supportingText = { Text(stringResource(R.string.sync_server_url_hint)) },
-                            lineLimits = hoshiSingleLineTextFieldLineLimits(),
-                            scrollState = serverUrlScrollState,
-                            colors = hoshiOutlinedTextFieldColors(),
-                            enabled = !isAuthorizing,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        if (currentSettings.provider == SyncProvider.Ttu || serverUrl.isNotBlank()) {
+                    // A custom server signs in with device client credentials for either provider.
+                    if (currentSettings.provider == SyncProvider.Ttu || serverUrl.isNotBlank()) {
+                        SettingsDivider()
+                        Column(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
                             val clientIdScrollState = rememberScrollState()
                             val clientIdState = rememberSyncedTextFieldState(
                                 value = clientId,
@@ -726,6 +714,14 @@ fun SyncSettingsView(
                             )
                         }
                     }
+                    SettingsDivider()
+                    CustomServerSection(
+                        expanded = advancedExpanded,
+                        onExpandedChange = { advancedExpanded = it },
+                        serverUrl = serverUrl,
+                        onServerUrlChange = { serverUrl = it },
+                        enabled = !isAuthorizing,
+                    )
                 }
                 devicePrompt?.let { prompt ->
                     SettingsCard {
@@ -902,6 +898,57 @@ fun SyncSettingsView(
                 }
             }
         }
+    }
+}
+
+/** Collapsed by default: a self-hosted Google Drive compatible server is an opt-in for advanced users. */
+@Composable
+private fun CustomServerSection(
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    serverUrl: String,
+    onServerUrlChange: (String) -> Unit,
+    enabled: Boolean,
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onExpandedChange(!expanded) }
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.settings_advanced),
+            style = MaterialTheme.typography.bodyMedium,
+            color = colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        Icon(
+            imageVector = if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+            contentDescription = null,
+            tint = colorScheme.onSurfaceVariant,
+        )
+    }
+    if (expanded) {
+        val serverUrlScrollState = rememberScrollState()
+        val serverUrlState = rememberSyncedTextFieldState(
+            value = serverUrl,
+            onValueChange = onServerUrlChange,
+            scrollState = serverUrlScrollState,
+        )
+        OutlinedTextField(
+            state = serverUrlState,
+            label = { Text(stringResource(R.string.sync_server_url)) },
+            lineLimits = hoshiSingleLineTextFieldLineLimits(),
+            scrollState = serverUrlScrollState,
+            colors = hoshiOutlinedTextFieldColors(),
+            enabled = enabled,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+        )
     }
 }
 

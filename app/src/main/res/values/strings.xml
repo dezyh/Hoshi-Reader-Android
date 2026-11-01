@@ -490,8 +490,7 @@
     <string name="sync_google_drive" comment="Sync provider label, intentionally matching the bookshelf remote Google Drive section.">Google Drive</string>
     <string name="sync_device_client_id">Device client ID</string>
     <string name="sync_device_client_secret">Device client secret</string>
-    <string name="sync_server_url">Server URL (optional)</string>
-    <string name="sync_server_url_hint">Leave empty to use Google Drive, or enter the base URL of a self-hosted Google Drive compatible server, such as http://192.168.1.10:8737. A custom server uses the device client ID and secret it issues.</string>
+    <string name="sync_server_url">Sync Server URL</string>
     <string name="sync_authorize_google_drive">Authorize Google Drive</string>
     <string name="sync_google_device_code">Google device code</string>
     <string name="sync_device_code_copied">Device code copied</string>
