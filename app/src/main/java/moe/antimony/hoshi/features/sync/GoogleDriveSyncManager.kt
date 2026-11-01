@@ -1033,7 +1033,7 @@ class GoogleDriveSyncManager internal constructor(
         val temporary = cacheDir.resolve(UUID.randomUUID().toString())
         try {
             trackTransfer(key, fileType, SyncTransferDirection.Download) { update ->
-                fileTransfer.download(driveUrl("files/${file.id.urlPathSegment()}", mapOf("alt" to "media")), temporary, file.size?.toLongOrNull()) { value ->
+                fileTransfer.download(client.driveUrl("files/${file.id.urlPathSegment()}", mapOf("alt" to "media")), temporary, file.size?.toLongOrNull()) { value ->
                     update(value)
                     value.totalBytes?.takeIf { it > 0 }?.let { onProgress(value.bytes.toDouble() / it) }
                 }

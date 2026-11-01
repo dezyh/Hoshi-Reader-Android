@@ -26,12 +26,9 @@ import moe.antimony.hoshi.di.IoDispatcher
 class DeviceCodeDriveAuthorizer @Inject constructor(
     @ApplicationContext context: Context,
     @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
+    private val endpoints: DriveEndpoints,
 ) : DriveAuthorizer {
     private val preferences = context.applicationContext.getSharedPreferences(PreferencesName, Context.MODE_PRIVATE)
-
-    init {
-        DriveEndpoints.serverUrl = DriveEndpoints.normalize(preferences.getString(ServerUrlKey, null))
-    }
 
     fun configuredClient(): DeviceCodeOAuthClient? {
         val clientId = preferences.getString(ClientIdKey, null)?.trim().orEmpty()
@@ -50,24 +47,22 @@ class DeviceCodeDriveAuthorizer @Inject constructor(
             .apply()
     }
 
-    fun configuredServerUrl(): String = preferences.getString(ServerUrlKey, null).orEmpty()
+    fun configuredServerUrl(): String = endpoints.serverUrl.orEmpty()
+
+    fun usesCustomServer(): Boolean = endpoints.usesCustomServer
 
     /**
      * Points sync at a Google Drive compatible server, or back at Google when [serverUrl] is blank.
      * Tokens are only valid for the server that issued them, so changing it signs out.
      */
     fun saveServerUrl(serverUrl: String) {
-        val normalized = DriveEndpoints.normalize(serverUrl)
-        if (normalized == DriveEndpoints.normalize(configuredServerUrl())) return
-        preferences.edit().putString(ServerUrlKey, normalized.orEmpty()).apply()
-        clearTokens()
-        DriveEndpoints.serverUrl = normalized
+        if (endpoints.save(serverUrl)) clearTokens()
     }
 
     suspend fun requestDeviceCode(): DeviceCodePrompt {
         val client = configuredClient() ?: throw DriveAuthException(MissingConfigurationMessage)
         val response = postForm(
-            url = DriveEndpoints.deviceCodeUrl,
+            url = endpoints.deviceCodeUrl,
             parameters = mapOf(
                 "client_id" to client.clientId,
                 "scope" to DriveFileScope,
@@ -94,7 +89,7 @@ class DeviceCodeDriveAuthorizer @Inject constructor(
         val client = configuredClient() ?: return DriveAuthorizationResult.Failed(MissingConfigurationMessage)
         val response = try {
             postForm(
-                url = DriveEndpoints.tokenUrl,
+                url = endpoints.tokenUrl,
                 parameters = mapOf(
                     "client_id" to client.clientId,
                     "client_secret" to client.clientSecret,
@@ -166,7 +161,7 @@ class DeviceCodeDriveAuthorizer @Inject constructor(
         val refreshToken = preferences.getString(RefreshTokenKey, null)
             ?: throw DriveAuthorizationRequiredException()
         val response = postForm(
-            url = DriveEndpoints.tokenUrl,
+            url = endpoints.tokenUrl,
             parameters = mapOf(
                 "client_id" to client.clientId,
                 "client_secret" to client.clientSecret,
@@ -255,7 +250,6 @@ class DeviceCodeDriveAuthorizer @Inject constructor(
         private const val PreferencesName = "google-drive-device-code-auth"
         private const val ClientIdKey = "clientId"
         private const val ClientSecretKey = "clientSecret"
-        private const val ServerUrlKey = "serverUrl"
         private const val AccessTokenKey = "accessToken"
         private const val RefreshTokenKey = "refreshToken"
         private const val AccessTokenExpiresAtMillisKey = "accessTokenExpiresAtMillis"

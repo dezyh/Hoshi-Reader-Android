@@ -18,11 +18,12 @@ class GoogleDriveRetryTest {
             val client = GoogleDriveClient(
                 object : DriveAccessTokenProvider { override suspend fun accessToken() = "token" },
                 { SyncProvider.Gdrive }, {}, UnconfinedTestDispatcher(testScheduler),
-            ) { address ->
-                requests++
-                response(address, if (requests <= 5) 403 else 200,
-                    """{"error":{"message":"Try again later","errors":[{"reason":"$reason"}]}}""")
-            }
+                openConnection = { address ->
+                    requests++
+                    response(address, if (requests <= 5) 403 else 200,
+                        """{"error":{"message":"Try again later","errors":[{"reason":"$reason"}]}}""")
+                },
+            )
             assertEquals(Result.retry(), backgroundSyncResult { client.request("files") })
             assertEquals(5, requests)
             assertEquals(Result.success(), backgroundSyncResult { client.request("files") })
@@ -36,10 +37,11 @@ class GoogleDriveRetryTest {
             val client = GoogleDriveClient(
                 object : DriveAccessTokenProvider { override suspend fun accessToken() = "token" },
                 { SyncProvider.Gdrive }, {}, UnconfinedTestDispatcher(testScheduler),
-            ) { address ->
-                requests++
-                response(address, status, """{"error":{"message":"Permission denied","errors":[{"reason":"insufficientFilePermissions"}]}}""")
-            }
+                openConnection = { address ->
+                    requests++
+                    response(address, status, """{"error":{"message":"Permission denied","errors":[{"reason":"insufficientFilePermissions"}]}}""")
+                },
+            )
             assertEquals(expected, backgroundSyncResult { client.request("files", method = method, body = "{}".toByteArray()) })
             assertEquals(1, requests)
         }

@@ -332,7 +332,7 @@ fun SyncSettingsView(
                 runDriveAuthorization({ operationError = it }) { hoshiSync.signOut() }
                 authorizer.saveServerUrl(serverUrl)
             }
-            if (currentSettings?.provider == SyncProvider.Gdrive && !DriveEndpoints.usesCustomServer) {
+            if (currentSettings?.provider == SyncProvider.Gdrive && !authorizer.usesCustomServer()) {
                 var awaitingResult = false
                 try {
                     runDriveAuthorization({ operationError = it }) {

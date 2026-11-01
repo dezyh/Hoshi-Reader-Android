@@ -143,7 +143,7 @@ class GoogleDriveSyncHandler @Inject constructor(private val client: GoogleDrive
 
     suspend fun download(file: GoogleDriveFile, destination: File, onProgress: (Double) -> Unit) {
         val size = file.size!!.toLong()
-        client.performDownload(driveUrl("files/${file.id.urlPathSegment()}", mapOf("alt" to "media")), destination) { received, _ ->
+        client.performDownload(client.driveUrl("files/${file.id.urlPathSegment()}", mapOf("alt" to "media")), destination) { received, _ ->
             if (size > 0) onProgress(received.toDouble() / size)
         }
     }

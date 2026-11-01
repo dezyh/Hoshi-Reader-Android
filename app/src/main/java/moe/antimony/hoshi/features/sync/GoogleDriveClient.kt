@@ -42,12 +42,14 @@ class GoogleDriveClient internal constructor(
     private val checkInternet: () -> Unit,
     private val ioDispatcher: CoroutineDispatcher,
     private val openConnection: (String) -> HttpURLConnection = { URL(it).openConnection() as HttpURLConnection },
+    val endpoints: DriveEndpoints = DriveEndpoints.google(),
 ) {
     @Inject constructor(
         @ApplicationContext context: Context,
         auth: GoogleDriveAuth,
         @IoDispatcher ioDispatcher: CoroutineDispatcher,
-    ) : this(auth, auth::provider, { checkValidatedInternet(context) }, ioDispatcher)
+        endpoints: DriveEndpoints,
+    ) : this(auth, auth::provider, { checkValidatedInternet(context) }, ioDispatcher, endpoints = endpoints)
     private val connections = Collections.synchronizedSet(mutableSetOf<HttpURLConnection>())
     private val limit = Semaphore(8)
     @Volatile private var isStopped = false
@@ -67,6 +69,9 @@ class GoogleDriveClient internal constructor(
     fun checkConnection(connection: Int) {
         if (connection != connectionId) throw CancellationException()
     }
+
+    fun driveUrl(endpoint: String, queryParameters: Map<String, String>): String =
+        endpoints.driveUrl(endpoint, queryParameters)
 
     suspend fun request(
         path: String,
@@ -278,13 +283,6 @@ class GoogleDriveClient internal constructor(
         throw GoogleDriveUnavailableException(error)
     }
 
-}
-
-internal fun driveUrl(endpoint: String, queryParameters: Map<String, String>): String {
-    val query = queryParameters.entries.joinToString("&") { (name, value) ->
-        "${name.urlQueryComponent()}=${value.urlQueryComponent()}"
-    }
-    return "${DriveEndpoints.drive(endpoint)}?$query"
 }
 
 internal fun String.urlQueryComponent(): String =

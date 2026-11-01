@@ -158,7 +158,7 @@ class TtuDriveHandler @Inject constructor(
     }
 
     override suspend fun trashFile(fileId: String) {
-        val url = driveUrl(endpoint = "files/${fileId.urlPathSegment()}", queryParameters = mapOf("fields" to "id, trashed"))
+        val url = client.driveUrl(endpoint = "files/${fileId.urlPathSegment()}", queryParameters = mapOf("fields" to "id, trashed"))
         val metadata = buildJsonObject { put("trashed", true) }.toString().toByteArray()
         client.performRequest(
             url = url,
@@ -187,7 +187,7 @@ class TtuDriveHandler @Inject constructor(
                 put("fields", fields)
                 pageToken?.let { put("pageToken", it) }
             }
-            val url = driveUrl(endpoint = "files", queryParameters = queryParameters)
+            val url = client.driveUrl(endpoint = "files", queryParameters = queryParameters)
             val data = client.performRequest(url = url, method = "GET")
             val response = json.decodeFromString(DriveFileListResponse.serializer(), data.decodeToString())
             files += response.files
@@ -197,7 +197,7 @@ class TtuDriveHandler @Inject constructor(
     }
 
     private suspend fun createFolder(name: String, parentId: String): String {
-        val url = driveUrl(endpoint = "files", queryParameters = mapOf("fields" to "id"))
+        val url = client.driveUrl(endpoint = "files", queryParameters = mapOf("fields" to "id"))
         val metadata = buildJsonObject {
             put("name", name)
             put("mimeType", FolderMimeType)
@@ -216,7 +216,7 @@ class TtuDriveHandler @Inject constructor(
         fileId: String,
         progress: (downloadedBytes: Long, totalBytes: Long?) -> Unit,
     ): ByteArray {
-        val url = driveUrl(endpoint = "files/${fileId.urlPathSegment()}", queryParameters = mapOf("alt" to "media"))
+        val url = client.driveUrl(endpoint = "files/${fileId.urlPathSegment()}", queryParameters = mapOf("alt" to "media"))
         return client.performRequest(url = url, method = "GET").also { data ->
             progress(data.size.toLong(), data.size.toLong())
         }
@@ -227,7 +227,7 @@ class TtuDriveHandler @Inject constructor(
         destination: File,
         progress: (downloadedBytes: Long, totalBytes: Long?) -> Unit,
     ) {
-        val url = driveUrl(endpoint = "files/${fileId.urlPathSegment()}", queryParameters = mapOf("alt" to "media"))
+        val url = client.driveUrl(endpoint = "files/${fileId.urlPathSegment()}", queryParameters = mapOf("alt" to "media"))
         client.performDownload(url = url, destination = destination, progress = progress)
     }
 
@@ -275,9 +275,9 @@ class TtuDriveHandler @Inject constructor(
         }.toString().toByteArray()
         val boundary = UUID.randomUUID().toString()
         val url = if (fileId == null) {
-            DriveEndpoints.upload("files?uploadType=multipart")
+            client.endpoints.upload("files?uploadType=multipart")
         } else {
-            DriveEndpoints.upload("files/${fileId.urlPathSegment()}?uploadType=multipart")
+            client.endpoints.upload("files/${fileId.urlPathSegment()}?uploadType=multipart")
         }
         val body = ByteArrayOutputStream().apply {
             writeUtf8("--$boundary\r\n")
@@ -319,9 +319,9 @@ class TtuDriveHandler @Inject constructor(
         }.toByteArray()
         val suffix = "\r\n--$boundary--\r\n".toByteArray(StandardCharsets.UTF_8)
         val url = if (fileId == null) {
-            DriveEndpoints.upload("files?uploadType=multipart")
+            client.endpoints.upload("files?uploadType=multipart")
         } else {
-            DriveEndpoints.upload("files/${fileId.urlPathSegment()}?uploadType=multipart")
+            client.endpoints.upload("files/${fileId.urlPathSegment()}?uploadType=multipart")
         }
         client.performStreamingUpload(
             url = url,

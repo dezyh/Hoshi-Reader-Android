@@ -39,6 +39,7 @@ internal suspend fun DataStore<Preferences>.nativeDriveAccessToken(authorize: su
 class GoogleDriveAuth @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val ttu: DeviceCodeDriveAuthorizer,
+    private val endpoints: DriveEndpoints,
     private val settings: Lazy<SyncSettingsRepository>,
     val browser: GoogleDriveBrowserAuth,
 ) : DriveAuthorizer {
@@ -48,7 +49,7 @@ class GoogleDriveAuth @Inject constructor(
 
     /** A custom sync server only supports the device code flow, so it applies to either provider. */
     private fun usesDeviceCode(provider: SyncProvider): Boolean =
-        provider == SyncProvider.Ttu || DriveEndpoints.usesCustomServer
+        provider == SyncProvider.Ttu || endpoints.usesCustomServer
 
     fun usesBrowserAuthorization(): Boolean =
         GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(context) != ConnectionResult.SUCCESS

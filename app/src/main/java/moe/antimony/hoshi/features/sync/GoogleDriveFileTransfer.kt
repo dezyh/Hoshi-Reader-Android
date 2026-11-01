@@ -37,16 +37,22 @@ class GoogleDriveFileTransfer internal constructor(
     endpoint: String? = null,
     private val checkInternet: () -> Unit,
     private val retryDelay: suspend (Int) -> Unit = { delay(1_000L * (1L shl it) + Random.nextLong(1_000)) },
+    private val endpoints: DriveEndpoints = DriveEndpoints.google(),
 ) : DriveFileTransfer {
-    @Inject constructor(@ApplicationContext context: Context, auth: GoogleDriveAuth, @IoDispatcher io: CoroutineDispatcher) : this(
+    @Inject constructor(
+        @ApplicationContext context: Context,
+        auth: GoogleDriveAuth,
+        @IoDispatcher io: CoroutineDispatcher,
+        endpoints: DriveEndpoints,
+    ) : this(
         auth, DriveUploadSessions(context.noBackupFilesDir.resolve("drive-uploads")), io,
         OkHttpClient.Builder().connectTimeout(30, TimeUnit.SECONDS).readTimeout(60, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false)
-            .retryOnConnectionFailure(false).build(), checkInternet = { checkValidatedInternet(context) },
+            .retryOnConnectionFailure(false).build(), checkInternet = { checkValidatedInternet(context) }, endpoints = endpoints,
     )
     private val fixedEndpoint = endpoint
     /** Resolved per request so a changed sync server applies without restarting. */
-    private val endpoint: String get() = fixedEndpoint ?: DriveEndpoints.upload("files")
+    private val endpoint: String get() = fixedEndpoint ?: endpoints.upload("files")
     private val client = client.newBuilder().retryOnConnectionFailure(false)
         .followRedirects(false).followSslRedirects(false).build()
     private val uploadClient = this.client.newBuilder().callTimeout(5, TimeUnit.MINUTES).build()
