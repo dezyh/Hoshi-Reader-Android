@@ -726,7 +726,8 @@ fun SyncSettingsView(
                         onExpandedChange = { advancedExpanded = it },
                         serverUrl = serverUrl,
                         onServerUrlChange = { serverUrl = it },
-                        enabled = !isAuthorizing,
+                        // The server only changes on Connect, so editing it while connected would do nothing.
+                        enabled = !isAuthorizing && authStatus != DriveAuthStatus.Connected,
                     )
                 }
                 devicePrompt?.let { prompt ->
