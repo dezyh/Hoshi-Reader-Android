@@ -51,10 +51,7 @@ class DeviceCodeDriveAuthorizer @Inject constructor(
 
     fun usesCustomServer(): Boolean = endpoints.usesCustomServer
 
-    /**
-     * Points sync at a Google Drive compatible server, or back at Google when [serverUrl] is blank.
-     * Tokens are only valid for the server that issued them, so changing it signs out.
-     */
+    /** Tokens only work with the server that issued them, so a change clears them. */
     fun saveServerUrl(serverUrl: String) {
         if (endpoints.save(serverUrl)) clearTokens()
     }

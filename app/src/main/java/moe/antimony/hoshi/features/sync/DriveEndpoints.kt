@@ -7,10 +7,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Base URLs for the Google Drive and OAuth APIs. A configured [serverUrl] points sync at a
- * self-hosted Google Drive compatible server, which then serves the OAuth device flow
- * (`/device/code`, `/token`) and the Drive API (`/drive/v3`, `/upload/drive/v3`) from one
- * origin. Without one, requests go to Google.
+ * Google Drive and OAuth base URLs. A custom [serverUrl] must serve `/device/code`, `/token`,
+ * `/drive/v3` and `/upload/drive/v3` from one origin; without one, requests go to Google.
  */
 @Singleton
 class DriveEndpoints internal constructor(
@@ -25,7 +23,6 @@ class DriveEndpoints internal constructor(
         { preferences.edit().putString(ServerUrlKey, it.orEmpty()).apply() },
     )
 
-    /** Read per request, so a changed server applies without restarting. */
     @Volatile
     var serverUrl: String? = normalize(serverUrl)
         private set
@@ -62,7 +59,6 @@ class DriveEndpoints internal constructor(
         private const val PreferencesName = "google-drive-device-code-auth"
         private const val ServerUrlKey = "serverUrl"
 
-        /** Endpoints that always use Google. */
         fun google(): DriveEndpoints = DriveEndpoints(null) {}
 
         fun normalize(url: String?): String? = url?.trim()?.trimEnd('/')?.takeIf { it.isNotEmpty() }

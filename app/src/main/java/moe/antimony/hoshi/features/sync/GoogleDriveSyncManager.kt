@@ -267,9 +267,8 @@ class GoogleDriveSyncManager internal constructor(
     }
 
     /**
-     * Points both providers at another Drive server. What was synced belongs to the old server,
-     * so this signs out and forgets Hoshi sync state even while ッツ is selected. The new server
-     * is saved last, so a failure keeps the old one.
+     * Forgets Hoshi sync state even while ッツ is selected, since it belongs to the old server.
+     * Saves the new server last, so a failure keeps the old one.
      */
     suspend fun changeServer(serverUrl: String): Unit = withContext(mainDispatcher) {
         signOut()
