@@ -284,7 +284,7 @@ internal fun driveUrl(endpoint: String, queryParameters: Map<String, String>): S
     val query = queryParameters.entries.joinToString("&") { (name, value) ->
         "${name.urlQueryComponent()}=${value.urlQueryComponent()}"
     }
-    return "https://www.googleapis.com/drive/v3/$endpoint?$query"
+    return "${DriveEndpoints.drive(endpoint)}?$query"
 }
 
 internal fun String.urlQueryComponent(): String =

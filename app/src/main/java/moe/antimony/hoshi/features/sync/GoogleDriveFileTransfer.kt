@@ -34,7 +34,7 @@ class GoogleDriveFileTransfer internal constructor(
     private val sessions: DriveUploadSessions,
     private val io: CoroutineDispatcher,
     client: OkHttpClient,
-    private val endpoint: String = "https://www.googleapis.com/upload/drive/v3/files",
+    endpoint: String? = null,
     private val checkInternet: () -> Unit,
     private val retryDelay: suspend (Int) -> Unit = { delay(1_000L * (1L shl it) + Random.nextLong(1_000)) },
 ) : DriveFileTransfer {
@@ -44,6 +44,9 @@ class GoogleDriveFileTransfer internal constructor(
             .writeTimeout(60, TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false)
             .retryOnConnectionFailure(false).build(), checkInternet = { checkValidatedInternet(context) },
     )
+    private val fixedEndpoint = endpoint
+    /** Resolved per request so a changed sync server applies without restarting. */
+    private val endpoint: String get() = fixedEndpoint ?: DriveEndpoints.upload("files")
     private val client = client.newBuilder().retryOnConnectionFailure(false)
         .followRedirects(false).followSslRedirects(false).build()
     private val uploadClient = this.client.newBuilder().callTimeout(5, TimeUnit.MINUTES).build()

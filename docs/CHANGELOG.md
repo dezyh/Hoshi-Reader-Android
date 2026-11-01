@@ -23,6 +23,7 @@ Release notes before v1.3.0 are in [CHANGELOG_ARCHIVE.md](CHANGELOG_ARCHIVE.md).
 - View, copy or export recent runtime errors alongside crash history and build information in Diagnostics.
 - Install the latest development preview from About.
 - Add LINE Seed JP to the recommended reader fonts.
+- Sync with a self-hosted Google Drive compatible server instead of Google Drive by entering its URL and device client credentials in Sync settings, for either sync provider.
 
 ### Changed
 

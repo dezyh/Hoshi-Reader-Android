@@ -145,6 +145,7 @@ fun SyncSettingsView(
     var isAuthorizing by remember { mutableStateOf(false) }
     var clientId by remember { mutableStateOf("") }
     var clientSecret by remember { mutableStateOf("") }
+    var serverUrl by remember { mutableStateOf("") }
     var devicePrompt by remember { mutableStateOf<DeviceCodePrompt?>(null) }
     var pollIntervalSeconds by remember { mutableStateOf(5L) }
     var operationError by remember { mutableStateOf<UiText?>(null) }
@@ -236,6 +237,7 @@ fun SyncSettingsView(
                 clientId = client.clientId
                 clientSecret = client.clientSecret
             }
+            serverUrl = authorizer.configuredServerUrl()
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
@@ -273,6 +275,10 @@ fun SyncSettingsView(
             when (result) {
                 is DriveAuthorizationResult.Authorized -> {
                     googleAuth.clearHoshiLogin()
+                    if (settings?.provider == SyncProvider.Gdrive) {
+                        hoshiSync.stop()
+                        hoshiSync.resetConnection()
+                    }
                     hoshiSync.start()
                     isAuthorizing = false
                     devicePrompt = null
@@ -318,7 +324,12 @@ fun SyncSettingsView(
         copyMessage = null
         devicePrompt = null
         scope.launch {
-            if (currentSettings?.provider == SyncProvider.Gdrive) {
+            if (DriveEndpoints.normalize(serverUrl) != DriveEndpoints.normalize(authorizer.configuredServerUrl())) {
+                // State synced with the previous server does not exist on the new one.
+                runDriveAuthorization({ operationError = it }) { hoshiSync.signOut() }
+                authorizer.saveServerUrl(serverUrl)
+            }
+            if (currentSettings?.provider == SyncProvider.Gdrive && !DriveEndpoints.usesCustomServer) {
                 var awaitingResult = false
                 try {
                     runDriveAuthorization({ operationError = it }) {
@@ -667,12 +678,28 @@ fun SyncSettingsView(
                             )
                         },
                     )
-                    if (currentSettings.provider == SyncProvider.Ttu) {
-                        SettingsDivider()
-                        Column(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
+                    SettingsDivider()
+                    Column(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        val serverUrlScrollState = rememberScrollState()
+                        val serverUrlState = rememberSyncedTextFieldState(
+                            value = serverUrl,
+                            onValueChange = { serverUrl = it },
+                            scrollState = serverUrlScrollState,
+                        )
+                        OutlinedTextField(
+                            state = serverUrlState,
+                            label = { Text(stringResource(R.string.sync_server_url)) },
+                            supportingText = { Text(stringResource(R.string.sync_server_url_hint)) },
+                            lineLimits = hoshiSingleLineTextFieldLineLimits(),
+                            scrollState = serverUrlScrollState,
+                            colors = hoshiOutlinedTextFieldColors(),
+                            enabled = !isAuthorizing,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        if (currentSettings.provider == SyncProvider.Ttu || serverUrl.isNotBlank()) {
                             val clientIdScrollState = rememberScrollState()
                             val clientIdState = rememberSyncedTextFieldState(
                                 value = clientId,

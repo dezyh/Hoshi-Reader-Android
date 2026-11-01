@@ -29,6 +29,10 @@ class DeviceCodeDriveAuthorizer @Inject constructor(
 ) : DriveAuthorizer {
     private val preferences = context.applicationContext.getSharedPreferences(PreferencesName, Context.MODE_PRIVATE)
 
+    init {
+        DriveEndpoints.serverUrl = DriveEndpoints.normalize(preferences.getString(ServerUrlKey, null))
+    }
+
     fun configuredClient(): DeviceCodeOAuthClient? {
         val clientId = preferences.getString(ClientIdKey, null)?.trim().orEmpty()
         val clientSecret = preferences.getString(ClientSecretKey, null)?.trim().orEmpty()
@@ -46,10 +50,24 @@ class DeviceCodeDriveAuthorizer @Inject constructor(
             .apply()
     }
 
+    fun configuredServerUrl(): String = preferences.getString(ServerUrlKey, null).orEmpty()
+
+    /**
+     * Points sync at a Google Drive compatible server, or back at Google when [serverUrl] is blank.
+     * Tokens are only valid for the server that issued them, so changing it signs out.
+     */
+    fun saveServerUrl(serverUrl: String) {
+        val normalized = DriveEndpoints.normalize(serverUrl)
+        if (normalized == DriveEndpoints.normalize(configuredServerUrl())) return
+        preferences.edit().putString(ServerUrlKey, normalized.orEmpty()).apply()
+        clearTokens()
+        DriveEndpoints.serverUrl = normalized
+    }
+
     suspend fun requestDeviceCode(): DeviceCodePrompt {
         val client = configuredClient() ?: throw DriveAuthException(MissingConfigurationMessage)
         val response = postForm(
-            url = DeviceCodeUrl,
+            url = DriveEndpoints.deviceCodeUrl,
             parameters = mapOf(
                 "client_id" to client.clientId,
                 "scope" to DriveFileScope,
@@ -76,7 +94,7 @@ class DeviceCodeDriveAuthorizer @Inject constructor(
         val client = configuredClient() ?: return DriveAuthorizationResult.Failed(MissingConfigurationMessage)
         val response = try {
             postForm(
-                url = TokenUrl,
+                url = DriveEndpoints.tokenUrl,
                 parameters = mapOf(
                     "client_id" to client.clientId,
                     "client_secret" to client.clientSecret,
@@ -148,7 +166,7 @@ class DeviceCodeDriveAuthorizer @Inject constructor(
         val refreshToken = preferences.getString(RefreshTokenKey, null)
             ?: throw DriveAuthorizationRequiredException()
         val response = postForm(
-            url = TokenUrl,
+            url = DriveEndpoints.tokenUrl,
             parameters = mapOf(
                 "client_id" to client.clientId,
                 "client_secret" to client.clientSecret,
@@ -237,11 +255,10 @@ class DeviceCodeDriveAuthorizer @Inject constructor(
         private const val PreferencesName = "google-drive-device-code-auth"
         private const val ClientIdKey = "clientId"
         private const val ClientSecretKey = "clientSecret"
+        private const val ServerUrlKey = "serverUrl"
         private const val AccessTokenKey = "accessToken"
         private const val RefreshTokenKey = "refreshToken"
         private const val AccessTokenExpiresAtMillisKey = "accessTokenExpiresAtMillis"
-        private const val DeviceCodeUrl = "https://oauth2.googleapis.com/device/code"
-        private const val TokenUrl = "https://oauth2.googleapis.com/token"
         private const val DeviceCodeGrantType = "urn:ietf:params:oauth:grant-type:device_code"
         private const val RefreshTokenGrantType = "refresh_token"
         private const val DefaultPollIntervalSeconds = 5L

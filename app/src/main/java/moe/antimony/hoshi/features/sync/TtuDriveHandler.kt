@@ -275,9 +275,9 @@ class TtuDriveHandler @Inject constructor(
         }.toString().toByteArray()
         val boundary = UUID.randomUUID().toString()
         val url = if (fileId == null) {
-            "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart"
+            DriveEndpoints.upload("files?uploadType=multipart")
         } else {
-            "https://www.googleapis.com/upload/drive/v3/files/${fileId.urlPathSegment()}?uploadType=multipart"
+            DriveEndpoints.upload("files/${fileId.urlPathSegment()}?uploadType=multipart")
         }
         val body = ByteArrayOutputStream().apply {
             writeUtf8("--$boundary\r\n")
@@ -319,9 +319,9 @@ class TtuDriveHandler @Inject constructor(
         }.toByteArray()
         val suffix = "\r\n--$boundary--\r\n".toByteArray(StandardCharsets.UTF_8)
         val url = if (fileId == null) {
-            "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart"
+            DriveEndpoints.upload("files?uploadType=multipart")
         } else {
-            "https://www.googleapis.com/upload/drive/v3/files/${fileId.urlPathSegment()}?uploadType=multipart"
+            DriveEndpoints.upload("files/${fileId.urlPathSegment()}?uploadType=multipart")
         }
         client.performStreamingUpload(
             url = url,

@@ -46,6 +46,10 @@ class GoogleDriveAuth @Inject constructor(
 
     suspend fun provider(): SyncProvider = settings.get().settings.first().provider
 
+    /** A custom sync server only supports the device code flow, so it applies to either provider. */
+    private fun usesDeviceCode(provider: SyncProvider): Boolean =
+        provider == SyncProvider.Ttu || DriveEndpoints.usesCustomServer
+
     fun usesBrowserAuthorization(): Boolean =
         GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(context) != ConnectionResult.SUCCESS
 
@@ -76,9 +80,9 @@ class GoogleDriveAuth @Inject constructor(
 
     override suspend fun status(): DriveAuthStatus = status(provider())
 
-    suspend fun status(provider: SyncProvider): DriveAuthStatus = when (provider) {
-        SyncProvider.Ttu -> ttu.status()
-        SyncProvider.Gdrive -> {
+    suspend fun status(provider: SyncProvider): DriveAuthStatus = when {
+        usesDeviceCode(provider) -> ttu.status()
+        else -> {
             val browserStatus = browser.status()
             if (browserStatus == DriveAuthStatus.Connected || usesBrowserAuthorization()) browserStatus
             else context.hoshiDriveAuthDataStore.nativeDriveStatus()
@@ -86,7 +90,7 @@ class GoogleDriveAuth @Inject constructor(
     }
 
     override suspend fun accessToken(): String {
-        if (provider() == SyncProvider.Ttu) return ttu.accessToken()
+        if (usesDeviceCode(provider())) return ttu.accessToken()
         if (browser.status() == DriveAuthStatus.Connected) return browser.accessToken()
         if (status(SyncProvider.Gdrive) != DriveAuthStatus.Connected) throw DriveAuthorizationRequiredException()
         return context.hoshiDriveAuthDataStore.nativeDriveAccessToken {
@@ -97,13 +101,13 @@ class GoogleDriveAuth @Inject constructor(
     }
 
     override suspend fun clearAccessToken(token: String) {
-        if (provider() == SyncProvider.Ttu) ttu.clearAccessToken(token)
+        if (usesDeviceCode(provider())) ttu.clearAccessToken(token)
         else if (browser.status() == DriveAuthStatus.Connected) browser.clearAccessToken(token)
         else client.clearToken(ClearTokenRequest.builder().setToken(token).build()).await()
     }
 
     override suspend fun revokeAccess() {
-        if (provider() == SyncProvider.Ttu) ttu.revokeAccess() else clearHoshiLogin()
+        if (usesDeviceCode(provider())) ttu.revokeAccess() else clearHoshiLogin()
     }
 
     companion object {
