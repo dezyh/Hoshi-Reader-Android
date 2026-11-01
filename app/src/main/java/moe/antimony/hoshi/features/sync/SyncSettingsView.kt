@@ -908,7 +908,6 @@ fun SyncSettingsView(
     }
 }
 
-/** Collapsed by default: a self-hosted Google Drive compatible server is an opt-in for advanced users. */
 @Composable
 private fun CustomServerSection(
     expanded: Boolean,
